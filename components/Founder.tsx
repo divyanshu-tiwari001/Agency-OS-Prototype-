@@ -143,18 +143,17 @@ export const Founder: React.FC = () => {
 
     // Mobile width check helper
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
-    const cardWidth = isMobile ? '90vw' : '320px';
-    const offsetX = isMobile ? '10%' : '320px'; // Less shift on mobile to keep in view
-
+    
     // Default styles for hidden/far cards
-    let styles = {
-        x: 0 as number | string,
+    // Using 'any' to avoid TS casting issues inside object literal
+    let styles: any = {
+        x: 0,
         scale: 0.6,
         opacity: 0,
         zIndex: 0,
         rotateY: 0,
         filter: 'grayscale(100%) blur(5px)',
-        pointerEvents: 'none' as 'none' | 'auto'
+        pointerEvents: 'none'
     };
 
     if (isCenter) {
@@ -239,7 +238,7 @@ export const Founder: React.FC = () => {
                     <motion.div
                         key={member.id}
                         initial={false}
-                        animate={style as any}
+                        animate={style}
                         transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }} // smooth cinematic ease
                         className="absolute top-0 h-[500px]"
                         style={{ 

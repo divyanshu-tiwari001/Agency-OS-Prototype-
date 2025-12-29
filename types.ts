@@ -11,7 +11,7 @@ export interface ImageGenParams {
 
 export enum GeminiModel {
   CHAT = 'gemini-3-pro-preview',
-  FAST = 'gemini-2.5-flash-lite-latest',
+  FAST = 'gemini-3-flash-preview',
   IMAGE = 'gemini-3-pro-image-preview',
   TTS = 'gemini-2.5-flash-preview-tts',
   SEARCH = 'gemini-3-flash-preview', // For grounding

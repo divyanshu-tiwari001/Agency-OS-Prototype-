@@ -257,7 +257,8 @@ export const Footer: React.FC = () => {
              style={{ backgroundImage: `linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)`, backgroundSize: '40px 40px' }} 
         />
         
-        <div className="container mx-auto px-6 relative z-[50]"> {/* High Z-Index to ensure clickability above grain/overlays */}
+        {/* Increased Z-Index to 60 to be safe above grains/overlays */}
+        <div className="container mx-auto px-6 relative z-[60]"> 
             
             {/* Top Section: CTA */}
             <div className="flex flex-col md:flex-row items-center justify-between mb-24 gap-12">
@@ -279,7 +280,7 @@ export const Footer: React.FC = () => {
                     transition={{ type: "spring", stiffness: 200, damping: 20 }}
                     whileHover={{ scale: 1.05, y: -2, boxShadow: "0 20px 30px -10px rgba(99, 102, 241, 0.3)" }}
                     whileTap={{ scale: 0.95, y: 0 }}
-                    className="group relative px-10 py-5 bg-white text-black font-black uppercase tracking-widest text-sm overflow-hidden flex items-center gap-3 rounded-sm shadow-xl"
+                    className="group relative px-10 py-5 bg-white text-black font-black uppercase tracking-widest text-sm overflow-hidden flex items-center gap-3 rounded-sm shadow-xl cursor-pointer"
                 >
                     <span className="relative z-10 group-hover:text-white transition-colors duration-300">Start Prototype</span>
                     <ArrowUpRight size={18} className="relative z-10 group-hover:text-white group-hover:rotate-45 transition-all duration-300" />
@@ -339,15 +340,16 @@ export const Footer: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Links - Optimized as Buttons */}
+                {/* Links - Buttons optimized for click */}
                 <div className="md:col-span-2 md:col-start-8">
                     <h4 className="text-xs font-bold text-white uppercase tracking-widest mb-8 border-b border-slate-800 pb-2 inline-block">Explore</h4>
                     <ul className="space-y-2 text-sm text-slate-500 font-medium">
                         {['Services', 'About', 'Contact'].map((item) => (
                             <li key={item} className="group">
                                 <button 
+                                    type="button"
                                     onClick={(e) => handleModalOpen(item, e)}
-                                    className="w-full text-left hover:text-indigo-400 cursor-pointer transition-colors duration-200 flex items-center gap-2 py-2"
+                                    className="w-full text-left hover:text-indigo-400 cursor-pointer transition-colors duration-200 flex items-center gap-2 py-2 appearance-none bg-transparent border-none p-0 m-0"
                                     onMouseEnter={playHover}
                                 >
                                     <span className="w-0 group-hover:w-2 h-[1px] bg-indigo-400 transition-all duration-300"></span>
@@ -358,15 +360,16 @@ export const Footer: React.FC = () => {
                     </ul>
                 </div>
 
-                {/* Legal - Optimized as Buttons */}
+                {/* Legal - Buttons optimized for click */}
                 <div className="md:col-span-2">
                     <h4 className="text-xs font-bold text-white uppercase tracking-widest mb-8 border-b border-slate-800 pb-2 inline-block">Legal</h4>
                      <ul className="space-y-2 text-sm text-slate-500 font-medium">
                         {['Privacy Policy', 'Terms of Service', 'Prototype Disclaimer'].map((item) => (
                             <li key={item} className="group">
                                 <button
+                                    type="button"
                                     onClick={(e) => handleModalOpen(item, e)}
-                                    className="w-full text-left hover:text-indigo-400 cursor-pointer transition-colors duration-200 flex items-center gap-2 py-2"
+                                    className="w-full text-left hover:text-indigo-400 cursor-pointer transition-colors duration-200 flex items-center gap-2 py-2 appearance-none bg-transparent border-none p-0 m-0"
                                     onMouseEnter={playHover}
                                 >
                                     <span className="w-0 group-hover:w-2 h-[1px] bg-indigo-400 transition-all duration-300"></span>
@@ -428,11 +431,12 @@ export const Footer: React.FC = () => {
             PROTO
         </motion.div>
 
-        {/* Dynamic Contextual Popover - Rendered via Portal to escape z-index/overflow issues */}
-        <AnimatePresence>
-            {activePopup && mounted && createPortal(
+        {/* Dynamic Contextual Popover */}
+        {mounted && createPortal(
+            <AnimatePresence>
+            {activePopup && (
                 <div className="fixed inset-0 z-[9999] isolate font-sans pointer-events-none">
-                    {/* Backdrop - Transparent on Desktop, dimmed on mobile, allow clicks to pass through if transparent */}
+                    {/* Backdrop */}
                     <motion.div 
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -448,16 +452,9 @@ export const Footer: React.FC = () => {
                         exit={{ opacity: 0, scale: 0.9, y: 10 }}
                         style={{
                             position: 'fixed',
-                            // The user requested the popup to open just above the button.
-                            // We position the bottom of the popup at the top of the button.
-                            // y = rect.top (distance from top of viewport to top of button)
-                            // bottom = window.innerHeight - y
                             bottom: activePopup.alignment === 'center' ? 0 : window.innerHeight - activePopup.y,
-                            
-                            // Horizontal positioning
                             left: activePopup.alignment === 'center' ? 0 : (activePopup.alignment === 'right' ? 'auto' : activePopup.x),
                             right: activePopup.alignment === 'right' ? (window.innerWidth - (activePopup.x + activePopup.width)) : (activePopup.alignment === 'center' ? 0 : 'auto'),
-                            
                             width: activePopup.alignment === 'center' ? '100vw' : 400,
                             maxWidth: activePopup.alignment === 'center' ? '100vw' : '90vw'
                         }}
@@ -487,10 +484,11 @@ export const Footer: React.FC = () => {
                         {/* Decorative footer line */}
                         <div className="h-1 w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500" />
                     </motion.div>
-                </div>,
-                document.body
+                </div>
             )}
-        </AnimatePresence>
+            </AnimatePresence>,
+            document.body
+        )}
     </footer>
   );
 };

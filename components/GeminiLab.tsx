@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { streamAgencyChat, generateCreativeImage, generateAudio, performMarketResearch } from '../services/geminiService';
-import { Loader2, Send, Image as ImageIcon, Sparkles, X, Bot, Zap, Terminal } from 'lucide-react';
+import { Loader2, Send, Image as ImageIcon, Sparkles, X, Bot, Zap, Terminal, BrainCircuit } from 'lucide-react';
 import { useSound } from '../hooks/useSound';
 
 // PCM Decoding Helpers
@@ -62,7 +62,13 @@ export const GeminiLab: React.FC = () => {
   const [messages, setMessages] = useState<{role: string, text: string}[]>([]);
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
-  const [isThinking, setIsThinking] = useState(false);
+  
+  // New: Deep Think Mode Toggle
+  const [deepThink, setDeepThink] = useState(false);
+  
+  // New: Hint Visibility State
+  const [showHint, setShowHint] = useState(true);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const [imgPrompt, setImgPrompt] = useState('');
@@ -74,9 +80,16 @@ export const GeminiLab: React.FC = () => {
     if (messages.length === 0) {
         setMessages([{
             role: 'model',
-            text: "PROTOTYPE ASSISTANT ONLINE.\n\nI can answer basic questions about Agency OS.\n\nHow may I help you?"
+            text: "AI AGENT SYSTEM ONLINE.\n\nAgency OS is a cinematic brand website prototype powered by Gemini 2.5. I am here to provide expert brand information, understand every service-related problem you face, and deliver superior strategic solutions.\n\nAwaiting your command."
         }]);
     }
+
+    // Auto-hide the hint label after 8 seconds
+    const hintTimer = setTimeout(() => {
+        setShowHint(false);
+    }, 8000);
+
+    return () => clearTimeout(hintTimer);
   }, []);
 
   const scrollToBottom = () => {
@@ -88,8 +101,12 @@ export const GeminiLab: React.FC = () => {
   }, [messages, isOpen]);
 
   const toggleWidget = () => {
-    if (!isOpen) playSwitch(); 
-    else playClick(); 
+    if (!isOpen) {
+        playSwitch(); 
+        setShowHint(false); // Immediately hide hint on interaction
+    } else {
+        playClick(); 
+    }
     setIsOpen(!isOpen);
   };
 
@@ -105,11 +122,14 @@ export const GeminiLab: React.FC = () => {
 
     try {
       let context = "";
-      if (userMsg.toLowerCase().includes("trend") || userMsg.toLowerCase().includes("market")) {
+      // Smart Auto-Grounding: If it looks like a research question, search first.
+      if (userMsg.toLowerCase().includes("current") || userMsg.toLowerCase().includes("news") || userMsg.toLowerCase().includes("price") || userMsg.toLowerCase().includes("trend")) {
           try {
             const searchRes = await performMarketResearch(userMsg);
-            context = `\n[MARKET DATA]: ${searchRes.text}\n`;
-          } catch (e) { /* Ignore search errors in prototype mode */ }
+            if (searchRes?.text) {
+                 context = `\n[SYSTEM: LIVE DATA RETRIEVED]\n${searchRes.text}\n[END DATA]\n`;
+            }
+          } catch (e) { /* Ignore search errors silently */ }
       }
 
       const history = messages.map(m => ({
@@ -118,7 +138,9 @@ export const GeminiLab: React.FC = () => {
       }));
 
       const finalMsg = context + userMsg;
-      const stream = await streamAgencyChat(history, finalMsg, isThinking);
+      
+      // Pass the deepThink state to the service
+      const stream = await streamAgencyChat(history, finalMsg, deepThink);
       
       let fullResponse = '';
       setMessages(prev => [...prev, { role: 'model', text: '' }]);
@@ -129,7 +151,7 @@ export const GeminiLab: React.FC = () => {
         if (chunkText) {
             fullResponse += chunkText;
             charCount++;
-            if (charCount % 2 === 0) playData();
+            if (charCount % 3 === 0) playData(); // Reduced sound frequency slightly
 
             setMessages(prev => {
               const newArr = [...prev];
@@ -140,13 +162,14 @@ export const GeminiLab: React.FC = () => {
       }
       playSuccess();
 
-      if (fullResponse.length < 200 && !fullResponse.includes("SYSTEM NOTICE")) {
+      // Only speak reasonably short responses to keep the flow fast
+      if (fullResponse.length < 350) {
         const audioData = await generateAudio(fullResponse);
         if (audioData) playAudio(audioData);
       }
 
     } catch (err) {
-      setMessages(prev => [...prev, { role: 'model', text: "Connection interrupted. Prototype offline." }]);
+      setMessages(prev => [...prev, { role: 'model', text: "Connection interrupted. Re-establishing link..." }]);
     } finally {
       setIsStreaming(false);
     }
@@ -216,18 +239,18 @@ export const GeminiLab: React.FC = () => {
            </div>
         </button>
         
-        {/* Tooltip hint - Only shows when stationary and hovered */}
+        {/* Tooltip hint - Only shows momentarily on load */}
         <AnimatePresence>
-          {!isOpen && (
+          {!isOpen && showHint && (
              <motion.div 
                initial={{ opacity: 0, x: 20 }}
                animate={{ opacity: 1, x: 0 }}
-               exit={{ opacity: 0, x: 20 }}
-               transition={{ delay: 3 }}
+               exit={{ opacity: 0, x: 10, scale: 0.9 }}
+               transition={{ delay: 1, duration: 0.5 }}
                className="absolute right-full top-1/2 -translate-y-1/2 mr-6 pointer-events-none"
              >
                <div className="bg-white text-black text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-sm shadow-xl border border-neutral-200 whitespace-nowrap flex items-center gap-2">
-                 <span>AI Assistant</span>
+                 <span>AI AGENT</span>
                  <div className="w-1.5 h-1.5 bg-indigo-600 rounded-full animate-pulse" />
                </div>
                {/* Arrow */}
@@ -253,7 +276,9 @@ export const GeminiLab: React.FC = () => {
               <div className="flex items-center gap-3">
                 <div className="flex flex-col">
                     <span className="font-black text-white text-xs tracking-[0.2em] uppercase">AGENCY OS</span>
-                    <span className="text-[8px] font-mono text-indigo-400 tracking-widest">PROTOTYPE // ONLINE</span>
+                    <span className="text-[8px] font-mono text-indigo-400 tracking-widest flex items-center gap-1">
+                        AI AGENT SYSTEM <span className="w-1 h-1 bg-green-500 rounded-full animate-pulse"/>
+                    </span>
                 </div>
               </div>
               <div className="flex gap-2">
@@ -267,13 +292,13 @@ export const GeminiLab: React.FC = () => {
                 onClick={() => { setActiveTab('consult'); playClick(); }}
                 className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all border-b-2 ${activeTab === 'consult' ? 'border-indigo-500 text-white bg-white/5' : 'border-transparent text-slate-500 hover:text-white hover:bg-white/5'}`}
               >
-                <Bot size={12} /> Assistant
+                <Bot size={12} /> Consult
               </button>
               <button
                 onClick={() => { setActiveTab('create'); playClick(); }}
                 className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all border-b-2 ${activeTab === 'create' ? 'border-indigo-500 text-white bg-white/5' : 'border-transparent text-slate-500 hover:text-white hover:bg-white/5'}`}
               >
-                <Zap size={12} /> Generator
+                <Zap size={12} /> Create
               </button>
             </div>
 
@@ -295,9 +320,10 @@ export const GeminiLab: React.FC = () => {
                         className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'}`}
                       >
                          <div className={`text-[8px] font-mono tracking-widest mb-1 opacity-50 ${m.role === 'user' ? 'text-right' : 'text-left'}`}>
-                             {m.role === 'user' ? 'YOU' : 'SYSTEM'}
+                             {m.role === 'user' ? 'YOU' : 'AI AGENT'}
                          </div>
-                        <div className={`max-w-[85%] p-4 text-xs font-medium leading-relaxed shadow-lg backdrop-blur-sm border ${m.role === 'user' ? 'bg-white text-black border-white rounded-tr-none rounded-bl-xl rounded-tl-xl rounded-br-xl' : 'bg-slate-900/80 text-indigo-50 border-indigo-500/30 rounded-tl-none rounded-tr-xl rounded-bl-xl rounded-br-xl'}`}>
+                        <div className={`max-w-[90%] p-4 text-xs font-medium leading-relaxed shadow-lg backdrop-blur-sm border ${m.role === 'user' ? 'bg-white text-black border-white rounded-tr-none rounded-bl-xl rounded-tl-xl rounded-br-xl' : 'bg-slate-900/80 text-indigo-50 border-indigo-500/30 rounded-tl-none rounded-tr-xl rounded-bl-xl rounded-br-xl'}`}>
+                          {/* Basic Markdown-like formatting for lines */}
                           {m.text.split('\n').map((line, i) => (
                               <React.Fragment key={i}>
                                   {line}
@@ -309,7 +335,7 @@ export const GeminiLab: React.FC = () => {
                     ))}
                     {isStreaming && (
                          <div className="flex flex-col items-start">
-                             <div className="text-[8px] font-mono tracking-widest mb-1 opacity-50">SYSTEM</div>
+                             <div className="text-[8px] font-mono tracking-widest mb-1 opacity-50">AI AGENT THINKING</div>
                              <div className="bg-slate-900/80 p-4 border border-indigo-500/30 rounded-tr-xl rounded-bl-xl rounded-br-xl flex gap-1 items-center h-12">
                                  <motion.div animate={{ height: [4, 16, 4] }} transition={{ repeat: Infinity, duration: 1 }} className="w-1 bg-indigo-400" />
                                  <motion.div animate={{ height: [4, 16, 4] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }} className="w-1 bg-indigo-400" />
@@ -320,13 +346,23 @@ export const GeminiLab: React.FC = () => {
                     <div ref={messagesEndRef} />
                   </div>
 
-                  {/* Input */}
+                  {/* Input Controls */}
                   <div className="p-4 border-t border-white/10 bg-slate-900">
+                    <div className="flex items-center gap-2 mb-2">
+                        <button 
+                            onClick={() => { setDeepThink(!deepThink); playClick(); }}
+                            className={`flex items-center gap-1 px-2 py-1 rounded text-[9px] uppercase tracking-wider border transition-all ${deepThink ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-transparent text-slate-500 border-slate-700 hover:border-slate-500'}`}
+                        >
+                            <BrainCircuit size={10} />
+                            Deep Reasoning
+                        </button>
+                    </div>
+
                     <form onSubmit={handleChatSubmit} className="relative flex gap-2">
                       <div className="relative flex-1">
                           <input 
                             className="w-full bg-black border border-white/20 px-4 py-4 text-xs text-white focus:outline-none focus:border-indigo-500 transition-all placeholder:text-slate-700 font-mono"
-                            placeholder="Input command..."
+                            placeholder={deepThink ? "Ask complex strategy query..." : "Input command..."}
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                           />

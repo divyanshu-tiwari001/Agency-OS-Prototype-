@@ -1,20 +1,60 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { motion, useScroll, useTransform, useMotionValueEvent } from 'framer-motion';
+import React, { useEffect, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
+import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion';
 import { Logo } from './Logo';
-import { Moon, Sun, ArrowDown } from 'lucide-react';
+import { Moon, Sun } from 'lucide-react';
 import { useSound } from '../hooks/useSound';
 
 interface HeroProps {
   toggleTheme: () => void;
   isDark: boolean;
+  startAnimation: boolean;
 }
 
-const ScrambleText: React.FC<{ text: string; delay: number; className?: string }> = ({ text, delay, className }) => {
+// ----------------------------------------------------------------------
+// PREMIUM REVEAL COMPONENT (Main Title)
+// Smooth, masked character slide-up with luxurious easing.
+// ----------------------------------------------------------------------
+const RevealText: React.FC<{ 
+    text: string; 
+    delay?: number; 
+    className?: string; 
+    stagger?: number;
+    start?: boolean;
+}> = ({ text, delay = 0, className, stagger = 0.025, start = false }) => {
+  return (
+    <span className={`inline-flex overflow-hidden relative ${className}`}>
+        <span className="sr-only">{text}</span>
+        {text.split("").map((char, i) => (
+            <motion.span
+                key={i}
+                initial={{ y: "110%" }}
+                animate={start ? { y: "0%" } : { y: "110%" }}
+                transition={{
+                    duration: 1.1,
+                    ease: [0.25, 1, 0.5, 1], // The "Luxurious" sigmoid ease
+                    delay: delay + (i * stagger)
+                }}
+                className="inline-block whitespace-pre will-change-transform origin-bottom"
+            >
+                {char}
+            </motion.span>
+        ))}
+    </span>
+  );
+};
+
+// ----------------------------------------------------------------------
+// SCRAMBLE TEXT COMPONENT (Sub-Tagline)
+// Cyber-style decryption effect for technical feel.
+// ----------------------------------------------------------------------
+const ScrambleText: React.FC<{ text: string; delay?: number; className?: string; start?: boolean }> = ({ text, delay = 0, className, start = false }) => {
   const [displayedText, setDisplayedText] = useState("");
   const { playData } = useSound();
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-
+  const [hasStarted, setHasStarted] = useState(false);
+  
   const scramble = useCallback(() => {
+      const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_#@$";
       let iteration = 0;
       const interval = setInterval(() => {
         setDisplayedText(prev => 
@@ -25,185 +65,197 @@ const ScrambleText: React.FC<{ text: string; delay: number; className?: string }
             return chars[Math.floor(Math.random() * chars.length)];
           }).join("")
         );
-        
-        if (Math.random() > 0.9) playData();
 
-        if (iteration >= text.length) { 
-          clearInterval(interval);
+        if (iteration >= text.length) {
+            clearInterval(interval);
         }
         
-        iteration += 1 / 3;
+        iteration += 1 / 3; // Speed of decryption
       }, 30);
       return interval;
-  }, [text, playData]);
+  }, [text]);
 
   useEffect(() => {
+    if (!start) return;
+
     const timeout = setTimeout(() => {
-      scramble();
+        setHasStarted(true);
+        scramble();
     }, delay * 1000);
 
     return () => clearTimeout(timeout);
-  }, [delay, scramble]);
+  }, [delay, scramble, start]);
 
   return (
     <motion.span 
-      className={`inline-block cursor-default ${className}`}
-      onMouseEnter={() => scramble()}
-      whileHover={{ scale: 1.05 }}
+      className={`inline-block cursor-pointer font-mono ${className}`}
+      onMouseEnter={() => { playData(); scramble(); }}
+      whileHover={{ scale: 1.05, color: "#6366f1" }} // Indigio highlight on hover
     >
-      {displayedText || text.replace(/./g, ' ')}
+      {hasStarted ? displayedText : <span className="opacity-0">{text}</span>}
     </motion.span>
   );
 }
 
-const CinematicReveal: React.FC<{ text: string; delay: number }> = ({ text, delay }) => {
-  return (
-    <div className="overflow-hidden h-[13vw] sm:h-[14vw] flex items-center justify-center relative">
-        <motion.span
-            initial={{ y: "120%", scale: 1.4, opacity: 0, filter: "blur(15px)" }}
-            animate={{ y: "0%", scale: 1, opacity: 1, filter: "blur(0px)" }}
-            transition={{ 
-                type: "spring",
-                damping: 18,
-                stiffness: 90,
-                mass: 0.8,
-                delay: delay 
-            }}
-            className="block text-slate-900 dark:text-slate-50 relative z-10 origin-bottom"
-        >
-            {text}
-        </motion.span>
-        
-        {/* Subtle Ambient Reflection behind text */}
-        <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 0.1 }}
-            transition={{ delay: delay + 0.5, duration: 1 }}
-            className="absolute top-0 left-0 w-full h-full text-indigo-500 blur-sm select-none pointer-events-none transform scale-y-[-1] origin-bottom translate-y-[20%] z-0"
-        >
-            {text}
-        </motion.div>
-    </div>
-  );
-};
-
-export const Hero: React.FC<HeroProps> = ({ toggleTheme, isDark }) => {
+export const Hero: React.FC<HeroProps> = ({ toggleTheme, isDark, startAnimation }) => {
   const { scrollY } = useScroll();
   const { playHover, playClick, playSwitch } = useSound();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   
-  // Adjusted transforms to keep logo visible longer and clearer
-  const logoScale = useTransform(scrollY, [0, 300], [1, 0.8]);
-  const logoOpacity = useTransform(scrollY, [0, 500], [1, 0.8]); 
-
-  const [isGlitching, setIsGlitching] = useState(false);
-  const lastY = useRef(0);
-
-  useMotionValueEvent(scrollY, "change", (latest) => {
-      const threshold = 300;
-      if ((lastY.current < threshold && latest >= threshold) || (lastY.current > threshold && latest <= threshold)) {
-          if (!isGlitching) {
-            setIsGlitching(true);
-            setTimeout(() => setIsGlitching(false), 500);
-          }
-      }
-      lastY.current = latest;
-  });
+  // --- LOGO SCROLL PHYSICS ---
+  // Rotates 180deg over 500px scroll. 
+  const logoRotate = useTransform(scrollY, [0, 500], [0, 180]);
+  const logoScale = useTransform(scrollY, [0, 500], [1, 0.7]);
+  const logoOpacity = useTransform(scrollY, [0, 300], [1, 0]);
 
   return (
-    // Changed bg to bg-transparent to show Mandala from App.tsx
-    <section className="h-screen w-full flex flex-col justify-center items-center bg-transparent relative overflow-hidden">
+    <section className="h-screen w-full flex flex-col justify-center items-center bg-transparent relative overflow-hidden perspective-1000">
       
-      {/* Branding - Fixed Position with Glass Background for High Visibility */}
-      <motion.div 
-        style={{ scale: logoScale, opacity: logoOpacity }}
-        className="fixed top-6 left-6 md:top-8 md:left-8 z-[60] origin-top-left cursor-pointer pointer-events-auto"
-        onMouseEnter={playHover}
-        onClick={playClick}
-      >
-        <motion.div
-          className="bg-white/10 dark:bg-slate-950/30 backdrop-blur-md border border-white/20 dark:border-white/10 p-3 rounded-2xl shadow-xl transition-colors duration-500 group hover:border-indigo-500/50"
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          <motion.div
-             className="text-slate-900 dark:text-white"
-             animate={isGlitching ? {
-                x: [0, -2, 2, -2, 2, 0],
-                skewX: [0, 10, -10, 5, -5, 0],
-             } : { x: 0, skewX: 0 }}
-             transition={{ duration: 0.3, ease: "linear" }}
-          >
-            <Logo className="w-10 h-10 md:w-12 md:h-12" />
-          </motion.div>
-        </motion.div>
-      </motion.div>
-      
-      {/* Theme Toggle - Fixed Position with Glass Background */}
-      <div className="fixed top-6 right-6 md:top-8 md:right-8 z-[60]">
-        <motion.button 
-          onClick={() => { toggleTheme(); playSwitch(); }}
-          onMouseEnter={playHover}
-          whileHover={{ scale: 1.1, rotate: 180 }}
-          whileTap={{ scale: 0.9 }}
-          transition={{ type: "spring", stiffness: 260, damping: 20 }}
-          className="p-3 rounded-full bg-white/10 dark:bg-slate-950/30 backdrop-blur-md border border-white/20 dark:border-white/10 text-slate-900 dark:text-white shadow-xl hover:border-indigo-500/50 hover:text-indigo-500 transition-colors"
-          aria-label="Toggle Theme"
-        >
-          {isDark ? <Sun size={20} className="fill-current" /> : <Moon size={20} className="fill-current" />}
-        </motion.button>
+      {/* 
+        FIXED UI PORTAL 
+        Renders outside the main DOM tree to stay fixed regardless of parent transforms.
+      */}
+      {mounted && createPortal(
+        <>
+            {/* --- BRANDING --- */}
+            <motion.div 
+              style={{ rotate: logoRotate, scale: logoScale }}
+              className="fixed top-8 left-6 md:top-10 md:left-10 z-[60] mix-blend-difference cursor-pointer origin-center"
+              onMouseEnter={playHover}
+              onClick={() => { playClick(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+              initial={{ opacity: 0, y: -40 }}
+              animate={startAnimation ? { opacity: 1, y: 0 } : { opacity: 0, y: -40 }}
+              transition={{ duration: 1.2, ease: "easeOut", delay: 1 }}
+            >
+                {/* Continuous Subtle Breath Animation independent of scroll */}
+                <motion.div
+                    animate={{ scale: [1, 1.05, 1] }}
+                    transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+                    className="text-white relative" 
+                    style={{ opacity: logoOpacity }}
+                >
+                    <Logo className="w-12 h-12 md:w-16 md:h-16" />
+                </motion.div>
+            </motion.div>
+
+            {/* --- THEME TOGGLE (Eclipse Animation) --- */}
+            <motion.div 
+              className="fixed top-8 right-6 md:top-10 md:right-10 z-[60] mix-blend-difference cursor-pointer"
+              initial={{ opacity: 0, y: -40 }}
+              animate={startAnimation ? { opacity: 1, y: 0 } : { opacity: 0, y: -40 }}
+              transition={{ duration: 1.2, ease: "easeOut", delay: 1.2 }}
+            >
+              <button 
+                onClick={() => { toggleTheme(); playSwitch(); }}
+                onMouseEnter={playHover}
+                className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors"
+                aria-label="Toggle Theme"
+              >
+                <AnimatePresence mode="wait" initial={false}>
+                  {isDark ? (
+                    <motion.div
+                      key="sun"
+                      initial={{ y: 20, opacity: 0, rotate: -90 }}
+                      animate={{ y: 0, opacity: 1, rotate: 0 }}
+                      exit={{ y: -20, opacity: 0, rotate: 90 }}
+                      transition={{ duration: 0.4, ease: "backOut" }}
+                      className="text-white"
+                    >
+                      <Sun size={24} className="fill-current" />
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="moon"
+                      initial={{ y: 20, opacity: 0, rotate: -90 }}
+                      animate={{ y: 0, opacity: 1, rotate: 0 }}
+                      exit={{ y: -20, opacity: 0, rotate: 90 }}
+                      transition={{ duration: 0.4, ease: "backOut" }}
+                      className="text-white"
+                    >
+                      <Moon size={24} className="fill-current" />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </button>
+            </motion.div>
+        </>,
+        document.body
+      )}
+
+      {/* --- MAIN TYPOGRAPHY --- */}
+      <div className="flex flex-col items-center justify-center z-10 relative select-none">
+        {/* We stack them tightly with negative margins for that "magazine" look */}
+        <div className="text-[13vw] sm:text-[14vw] leading-[0.8] font-black tracking-tighter uppercase flex flex-col items-center text-slate-900 dark:text-slate-50 mix-blend-overlay dark:mix-blend-normal">
+             {/* Staggered Entrance - Premium Reveal */}
+             <RevealText text="AGENCY" delay={0.2} stagger={0.03} start={startAnimation} />
+             <RevealText text="SYSTEM" delay={0.4} stagger={0.03} start={startAnimation} />
+             <RevealText text="DESIGN" delay={0.6} stagger={0.03} start={startAnimation} />
+        </div>
       </div>
 
-      {/* Main Typography */}
+      {/* --- ANIMATED SUB-TAGLINE --- */}
       <motion.div 
-        initial={{ scale: 1.2 }}
-        animate={{ scale: 1 }}
-        transition={{ duration: 1.8, ease: "easeOut" }}
-        className="flex flex-col items-center justify-center z-10 text-[14vw] sm:text-[15vw] leading-[0.8] font-black tracking-tighter uppercase transition-colors duration-500 select-none"
+        className="mt-12 z-20 overflow-hidden"
+        initial={{ opacity: 0, y: 20 }}
+        animate={startAnimation ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+        transition={{ delay: 1.5, duration: 1 }}
       >
-        <CinematicReveal text="AGENCY" delay={0.2} />
-        <CinematicReveal text="SYSTEM" delay={0.4} />
-        <CinematicReveal text="DESIGN" delay={0.6} />
+        <div className="flex items-center gap-4 md:gap-8 text-xs md:text-sm font-bold tracking-[0.3em] text-slate-500 dark:text-slate-400 uppercase text-center">
+            {/* Scramble / Decryption Effects for Sub-Tagline */}
+            <div className="hover:text-indigo-500 transition-colors cursor-pointer">
+                <ScrambleText text="STRATEGY" delay={1.8} start={startAnimation} />
+            </div>
+
+            <motion.span 
+                initial={{ scale: 0 }} 
+                animate={startAnimation ? { scale: 1 } : { scale: 0 }} 
+                transition={{ delay: 2.0 }}
+                className="text-indigo-500 text-[10px] animate-pulse"
+            >
+                ●
+            </motion.span>
+
+            <div className="hover:text-indigo-500 transition-colors cursor-pointer">
+                <ScrambleText text="PRODUCT" delay={2.1} start={startAnimation} />
+            </div>
+
+            <motion.span 
+                initial={{ scale: 0 }} 
+                animate={startAnimation ? { scale: 1 } : { scale: 0 }} 
+                transition={{ delay: 2.3 }}
+                className="text-indigo-500 text-[10px] animate-pulse"
+            >
+                ●
+            </motion.span>
+
+            <div className="hover:text-indigo-500 transition-colors cursor-pointer">
+                <ScrambleText text="GROWTH" delay={2.4} start={startAnimation} />
+            </div>
+        </div>
       </motion.div>
 
-      {/* Animated Tagline */}
+      {/* --- SCROLL INDICATOR --- */}
       <motion.div 
-        className="mt-8 z-20 overflow-hidden min-h-[20px]"
+        className="absolute bottom-10 flex flex-col items-center gap-4 z-20 cursor-pointer group"
         initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 2.5, duration: 0.8 }}
+        animate={startAnimation ? { opacity: 1 } : { opacity: 0 }}
+        transition={{ delay: 2.8, duration: 1 }}
+        onClick={() => { playClick(); window.scrollTo({ top: window.innerHeight, behavior: 'smooth' }); }}
       >
-        <div className="flex items-center gap-3 md:gap-6 text-xs md:text-sm font-bold tracking-[0.3em] text-slate-500 dark:text-slate-400 uppercase text-center">
-            <ScrambleText text="STRATEGY" delay={3.0} className="hover:text-indigo-500 transition-colors" />
-            <span className="text-indigo-500 animate-pulse">•</span>
-            <ScrambleText text="PRODUCT" delay={3.5} className="hover:text-indigo-500 transition-colors" />
-            <span className="text-indigo-500 animate-pulse">•</span>
-            <ScrambleText text="GROWTH" delay={4.0} className="hover:text-indigo-500 transition-colors" />
+        <div className="h-12 w-[1px] bg-gradient-to-b from-transparent via-slate-400 to-transparent relative overflow-hidden">
+             <motion.div 
+                className="absolute top-0 left-0 w-full h-1/2 bg-indigo-500"
+                animate={{ top: ["-100%", "100%"] }}
+                transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+             />
         </div>
-      </motion.div>
-
-      {/* Scroll Indicator - Continuous Bounce Animation */}
-      <motion.div 
-        className="absolute bottom-10 flex flex-col items-center gap-2 z-20"
-        initial={{ opacity: 0, y: 0 }}
-        animate={{ 
-            opacity: 1,
-            y: [0, 10, 0] 
-        }}
-        transition={{ 
-            opacity: { delay: 2.8, duration: 0.8 },
-            y: { duration: 2, repeat: Infinity, ease: "easeInOut" }
-        }}
-      >
-        <button 
-          onMouseEnter={playHover}
-          onClick={() => { playClick(); window.scrollTo({ top: window.innerHeight, behavior: 'smooth' }); }}
-          className="bg-slate-900/10 dark:bg-white/10 backdrop-blur-sm border border-slate-900/10 dark:border-white/10 text-slate-900 dark:text-white px-6 py-2 rounded-full text-sm font-bold tracking-widest uppercase cursor-pointer transition-all hover:bg-indigo-500 hover:text-white hover:border-indigo-500"
-        >
-          Scroll Down
-        </button>
-        <div className="text-slate-900 dark:text-white">
-          <ArrowDown size={24} />
-        </div>
+        <span className="text-[10px] font-mono uppercase tracking-widest text-slate-500 group-hover:text-indigo-400 transition-colors">
+            Scroll to Explore
+        </span>
       </motion.div>
     </section>
   );
