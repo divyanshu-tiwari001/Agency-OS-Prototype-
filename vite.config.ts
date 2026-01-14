@@ -11,10 +11,6 @@ export default defineConfig(({ mode }) => {
         host: '0.0.0.0',
       },
       plugins: [react()],
-      define: {
-        // Note: API keys should be prefixed with VITE_ and will be exposed in the client bundle
-        // Ensure proper API key restrictions are configured in your provider's dashboard
-      },
       resolve: {
         alias: {
           '@': path.resolve(__dirname, './src'),
