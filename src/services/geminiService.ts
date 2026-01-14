@@ -2,7 +2,7 @@ import { GoogleGenAI, Modality } from "@google/genai";
 import { GeminiModel } from "../types";
 
 // Initialize Gemini AI Client
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || '' });
 
 // ------------------------------------------------------------------
 // SYSTEM PROMPT: BRAND STRATEGY & SERVICE EXPERT
