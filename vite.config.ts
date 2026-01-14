@@ -12,8 +12,8 @@ export default defineConfig(({ mode }) => {
       },
       plugins: [react()],
       define: {
-        'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
+        // Note: API keys should be prefixed with VITE_ and will be exposed in the client bundle
+        // Ensure proper API key restrictions are configured in your provider's dashboard
       },
       resolve: {
         alias: {
